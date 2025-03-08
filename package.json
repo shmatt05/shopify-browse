@@ -1,0 +1,12 @@
+{
+  "name": "shopify-browser",
+  "version": "1.0.0",
+  "description": "A web application to browse Shopify store products",
+  "scripts": {
+    "start": "serve public",
+    "dev": "serve public"
+  },
+  "devDependencies": {
+    "serve": "^14.2.1"
+  }
+}

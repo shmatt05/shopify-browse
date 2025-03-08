@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Browse any Shopify store's products in a searchable, filterable table. No login required.">
+    <title>Shopify Product Browser</title>
+    <link rel="stylesheet" href="styles.css">
+    <!-- Font Awesome for icons - load with defer attribute for performance -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" media="print" onload="this.media='all'">
+    <!-- Google Fonts - load with preconnect for faster fetching -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1><i class="fas fa-shopping-bag"></i> Shopify Product Browser</h1>
+        </header>
+        
+        <div class="search-container">
+            <div class="input-group">
+                <input type="text" id="store-name" placeholder="Enter Shopify store name (e.g. '260-sample-sale')">
+                <button id="fetch-button" class="primary-button">
+                    <i class="fas fa-search"></i> Fetch Products
+                </button>
+            </div>
+            <div class="loader" id="loader">
+                <div class="spinner"></div>
+                <p>Fetching products... This may take a moment.</p>
+            </div>
+        </div>
+
+        <div id="info-panel" class="info-panel hidden">
+            <div class="store-info">
+                <h2 id="store-title">Store: <span id="current-store"></span></h2>
+                <p id="product-count">Products: <span id="count">0</span> / Showing: <span id="showing-count">0</span></p>
+            </div>
+            <div class="filter-container">
+                <select id="sort-select">
+                    <option value="">Sort by...</option>
+                    <option value="title_asc">Title (A-Z)</option>
+                    <option value="title_desc">Title (Z-A)</option>
+                    <option value="date_desc">Newest First</option>
+                    <option value="date_asc">Oldest First</option>
+                    <option value="price_asc">Price (Low to High)</option>
+                    <option value="price_desc">Price (High to Low)</option>
+                </select>
+            </div>
+        </div>
+
+        <div id="results-container" class="results-container">
+            <div id="table-scroll-hint" class="table-scroll-hint hidden">
+                <i class="fas fa-arrow-left"></i> Scroll table horizontally <i class="fas fa-arrow-right"></i>
+            </div>
+            <table id="products-table" class="products-table hidden">
+                <thead>
+                    <tr>
+                        <th data-sort="title">
+                            <div class="th-content">
+                                <div class="th-title">Title <i class="fas fa-sort"></i></div>
+                                <div class="th-filter">
+                                    <input type="text" class="column-filter" data-column="title" placeholder="Filter title...">
+                                </div>
+                            </div>
+                        </th>
+                        <th data-sort="vendor">
+                            <div class="th-content">
+                                <div class="th-title">Vendor <i class="fas fa-sort"></i></div>
+                                <div class="th-filter">
+                                    <input type="text" class="column-filter" data-column="vendor" placeholder="Filter vendor...">
+                                </div>
+                            </div>
+                        </th>
+                        <th data-sort="type">
+                            <div class="th-content">
+                                <div class="th-title">Type <i class="fas fa-sort"></i></div>
+                                <div class="th-filter">
+                                    <input type="text" class="column-filter" data-column="type" placeholder="Filter type...">
+                                </div>
+                            </div>
+                        </th>
+                        <th data-sort="price">
+                            <div class="th-content">
+                                <div class="th-title">Price <i class="fas fa-sort"></i></div>
+                                <div class="th-filter">
+                                    <input type="text" class="column-filter" data-column="price" placeholder="Filter price...">
+                                </div>
+                            </div>
+                        </th>
+                        <th data-sort="created">
+                            <div class="th-content">
+                                <div class="th-title">Created <i class="fas fa-sort"></i></div>
+                                <div class="th-filter">
+                                    <input type="text" class="column-filter" data-column="created" placeholder="Filter date...">
+                                </div>
+                            </div>
+                        </th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="products-body">
+                    <!-- Products will be populated here -->
+                </tbody>
+            </table>
+            
+            <div class="pagination-container">
+                <button id="prev-page" class="pagination-button"><i class="fas fa-chevron-left"></i> Previous</button>
+                <div id="page-numbers" class="page-numbers">
+                    <!-- Page numbers will be populated here -->
+                </div>
+                <button id="next-page" class="pagination-button">Next <i class="fas fa-chevron-right"></i></button>
+            </div>
+        </div>
+
+        <div id="error-message" class="error-message hidden">
+            <i class="fas fa-exclamation-triangle"></i>
+            <p id="error-text"></p>
+        </div>
+    </div>
+
+    <script src="script.js?v=2"></script>
+</body>
+</html>
