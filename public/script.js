@@ -17,7 +17,12 @@ document.addEventListener('DOMContentLoaded', () => {
         errorText: document.getElementById('error-text'),
         prevPageButton: document.getElementById('prev-page'),
         nextPageButton: document.getElementById('next-page'),
-        pageNumbersContainer: document.getElementById('page-numbers')
+        pageNumbersContainer: document.getElementById('page-numbers'),
+        exportHtmlButton: document.getElementById('export-html-button'),
+        filterContainer: document.querySelector('.filter-container'),
+        brandFilter: null, // Will be created dynamically
+        genderFilter: null, // Will be created dynamically
+        typeFilter: null // Will be created dynamically
     };
 
     // Application state
@@ -35,8 +40,13 @@ document.addEventListener('DOMContentLoaded', () => {
             vendor: '',
             type: '',
             price: '',
-            created: ''
-        }
+            created: '',
+            brand: '',
+            gender: ''
+        },
+        brandOptions: [],
+        genderOptions: [],
+        typeOptions: []
     };
 
     // Event listeners - use event delegation where possible
@@ -45,15 +55,16 @@ document.addEventListener('DOMContentLoaded', () => {
     elements.storeNameInput.addEventListener('keypress', (e) => {
         if (e.key === 'Enter') fetchProducts();
     });
+    elements.exportHtmlButton.addEventListener('click', exportProductsToHtml);
 
     // Add click listeners to table headers for sorting using event delegation
     document.querySelector('.products-table thead').addEventListener('click', (e) => {
         // Find closest th element (if any)
         const th = e.target.closest('th[data-sort]');
-        
+
         // Skip if no th found or if clicking on filter input
         if (!th || e.target.tagName === 'INPUT') return;
-        
+
         sortProducts(th.getAttribute('data-sort'));
     });
 
@@ -79,7 +90,7 @@ document.addEventListener('DOMContentLoaded', () => {
             goToPage(state.currentPage - 1);
         }
     });
-    
+
     elements.nextPageButton.addEventListener('click', () => {
         if (state.currentPage < state.totalPages) {
             goToPage(state.currentPage + 1);
@@ -89,7 +100,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // Fetch products directly from Shopify using JSONP technique
     function fetchProducts() {
         const storeName = elements.storeNameInput.value.trim();
-        
+
         if (!storeName) {
             showError('Please enter a store name');
             return;
@@ -104,18 +115,18 @@ document.addEventListener('DOMContentLoaded', () => {
         window.allProducts = [];
         let fetchPage = 1;
         const limit = 250; // Maximum allowed by Shopify API
-        
+
         // Create a function to handle the JSONP response
         window.handleShopifyProducts = function(data) {
             // Check if we have products
             if (data && data.products && Array.isArray(data.products)) {
                 // Add products to our collection
                 window.allProducts = window.allProducts.concat(data.products);
-                
+
                 // Update loading status
                 const loadingMessage = document.querySelector('#loader p');
                 const productCount = window.allProducts.length.toLocaleString();
-                
+
                 // For large stores, show more informative progress
                 if (fetchPage > 100) {
                     loadingMessage.innerHTML = `<strong>Large store detected!</strong><br>
@@ -124,20 +135,20 @@ document.addEventListener('DOMContentLoaded', () => {
                 } else {
                     loadingMessage.textContent = `Fetched page ${fetchPage}. Products so far: ${productCount}`;
                 }
-                
+
                 // If we got fewer products than the limit, we've reached the end
                 if (data.products.length < limit) {
                     finishLoading();
                 } else {
                     // Otherwise, fetch the next page
                     fetchPage++;
-                    
+
                     // No arbitrary page limit - continue fetching all products
                     // Add a message for large stores to show progress
                     if (fetchPage % 100 === 0) {
                         console.log(`Fetched ${fetchPage} pages (${window.allProducts.length} products so far). Continuing...`);
                     }
-                    
+
                     fetchNextPage();
                 }
             } else {
@@ -150,7 +161,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             }
         };
-        
+
         // Function to handle errors
         window.handleShopifyError = function() {
             if (window.allProducts.length === 0) {
@@ -159,7 +170,7 @@ document.addEventListener('DOMContentLoaded', () => {
             } else {
                 // If we have some products and hit a timeout on a later page
                 const productCount = window.allProducts.length.toLocaleString();
-                
+
                 if (fetchPage > 100) {
                     // For very large stores, could be a timeout but we have data
                     showLoader(false);
@@ -173,18 +184,18 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             }
         };
-        
+
         // Function to fetch the next page
         function fetchNextPage() {
             // Create a script element for JSONP
             const script = document.createElement('script');
-            
+
             // Create the JSONP URL for this page
             script.src = `https://${storeName}.myshopify.com/products.json?limit=${limit}&page=${fetchPage}&callback=handleShopifyProducts`;
-            
+
             // Set error handler
             script.onerror = window.handleShopifyError;
-            
+
             // Set a timeout in case the request hangs
             // Use longer timeout for large stores (more products/pages take longer to process)
             const timeoutDuration = fetchPage > 100 ? 30000 : 15000; // 30 seconds for large stores, 15 for others
@@ -192,77 +203,288 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (script.parentNode) script.parentNode.removeChild(script);
                 window.handleShopifyError();
             }, timeoutDuration);
-            
+
             // Add script to document to start the request
             document.body.appendChild(script);
-            
+
             // Remove the script after it's executed
             script.onload = function() {
                 clearTimeout(timeout);
                 document.body.removeChild(script);
             };
         }
-        
+
         // Function to finish the loading process
         function finishLoading() {
             // Store the fetched products in our app's state
             state.allProducts = window.allProducts;
+
+            // Initialize filteredProducts with all products
             state.filteredProducts = [...state.allProducts];
-            
+
+            // Extract brand, gender, and type options
+            extractProductAttributes();
+
+            // Create filter dropdowns if they don't exist
+            createFilterDropdowns();
+
+            // Apply automatic filter for "The Style Vault" vendor
+            if (state.allProducts.some(product => product.vendor === "The Style Vault")) {
+                state.filterState.vendor = "The Style Vault";
+                // Update the vendor input filter to reflect this
+                const vendorFilter = document.querySelector('.column-filter[data-column="vendor"]');
+                if (vendorFilter) {
+                    vendorFilter.value = "The Style Vault";
+                }
+            }
+
+            // Apply filters
+            applyFilters();
+
             // Update UI
             elements.currentStoreSpan.textContent = storeName;
             elements.countSpan.textContent = state.allProducts.length;
-            
+
             // Reset pagination
             state.currentPage = 1;
             updatePagination();
-            
+
             // Render first page
             renderProductsPage();
             showInfoPanel(true);
             showProductsTable(true);
             showLoader(false);
         }
-        
+
+
         // Start fetching the first page
         fetchNextPage();
+    }
+
+    // Extract brand, gender, and type from products
+    function extractProductAttributes() {
+        const brands = new Set();
+        const genders = new Set();
+        const types = new Set();
+
+        // Use filteredProducts instead of allProducts to only show options from filtered items
+        state.filteredProducts.forEach(product => {
+            // Extract brand and gender from title (e.g., "Smythson | Men | Box | Midnight Blue")
+            if (product.title) {
+                const parts = product.title.split('|').map(part => part.trim());
+                if (parts.length >= 1) {
+                    const brand = parts[0];
+                    brands.add(brand);
+                }
+                if (parts.length >= 2) {
+                    const gender = parts[1];
+                    genders.add(gender);
+                }
+            }
+
+            // Add product type
+            if (product.product_type) {
+                types.add(product.product_type);
+            }
+        });
+
+        // Convert sets to sorted arrays
+        state.brandOptions = Array.from(brands).sort();
+        state.genderOptions = Array.from(genders).sort();
+        state.typeOptions = Array.from(types).sort();
+    }
+
+    // Create dropdown filters
+    function createFilterDropdowns() {
+        // Create brand filter
+        if (!elements.brandFilter) {
+            elements.brandFilter = createDropdown('brand', 'Brand', state.brandOptions);
+            elements.filterContainer.appendChild(elements.brandFilter);
+        } else {
+            updateDropdownOptions(elements.brandFilter, state.brandOptions);
+        }
+
+        // Create gender filter
+        if (!elements.genderFilter) {
+            elements.genderFilter = createDropdown('gender', 'Gender', state.genderOptions);
+            elements.filterContainer.appendChild(elements.genderFilter);
+        } else {
+            updateDropdownOptions(elements.genderFilter, state.genderOptions);
+        }
+
+        // Create type filter
+        if (!elements.typeFilter) {
+            elements.typeFilter = createDropdown('type', 'Type', state.typeOptions);
+            elements.filterContainer.appendChild(elements.typeFilter);
+        } else {
+            updateDropdownOptions(elements.typeFilter, state.typeOptions);
+        }
+    }
+
+    // Create a dropdown filter
+    function createDropdown(name, label, options) {
+        const select = document.createElement('select');
+        select.id = `${name}-filter`;
+        select.className = 'dropdown-filter';
+        select.setAttribute('data-filter', name);
+
+        // Add "All" option
+        const allOption = document.createElement('option');
+        allOption.value = '';
+        allOption.textContent = `All ${label}`;
+        select.appendChild(allOption);
+
+        // Add options
+        options.forEach(option => {
+            const optionElement = document.createElement('option');
+            optionElement.value = option;
+            optionElement.textContent = option;
+            select.appendChild(optionElement);
+        });
+
+        // Add event listener
+        select.addEventListener('change', function() {
+            state.filterState[name] = this.value;
+
+            // If this is brand or gender, we need to update the other dropdowns
+            if (name === 'brand' || name === 'gender') {
+                updateFilterDropdowns();
+            }
+
+            applyFilters();
+        });
+
+        return select;
+    }
+
+    // Update dropdown options based on current filters
+    function updateFilterDropdowns() {
+        // Get current filter values
+        const currentBrand = state.filterState.brand;
+        const currentGender = state.filterState.gender;
+
+        // Filter products based on current filters
+        // Use filteredProducts instead of allProducts to only show options from filtered items
+        const filteredForDropdowns = state.filteredProducts.filter(product => {
+            const parts = product.title ? product.title.split('|').map(part => part.trim()) : [];
+            const productBrand = parts.length >= 1 ? parts[0] : '';
+            const productGender = parts.length >= 2 ? parts[1] : '';
+
+            // Check if product matches current filters
+            const matchesBrand = !currentBrand || productBrand === currentBrand;
+            const matchesGender = !currentGender || productGender === currentGender;
+
+            return matchesBrand && matchesGender;
+        });
+
+        // Extract available options from filtered products
+        const availableBrands = new Set();
+        const availableGenders = new Set();
+        const availableTypes = new Set();
+
+        filteredForDropdowns.forEach(product => {
+            const parts = product.title ? product.title.split('|').map(part => part.trim()) : [];
+            if (parts.length >= 1) availableBrands.add(parts[0]);
+            if (parts.length >= 2) availableGenders.add(parts[1]);
+            if (product.product_type) availableTypes.add(product.product_type);
+        });
+
+        // Update dropdowns while preserving current selections
+        if (elements.brandFilter && !currentBrand) {
+            updateDropdownOptions(elements.brandFilter, Array.from(availableBrands).sort());
+        }
+
+        if (elements.genderFilter && !currentGender) {
+            updateDropdownOptions(elements.genderFilter, Array.from(availableGenders).sort());
+        }
+
+        if (elements.typeFilter) {
+            updateDropdownOptions(elements.typeFilter, Array.from(availableTypes).sort());
+        }
+    }
+
+    // Update options in a dropdown
+    function updateDropdownOptions(dropdown, options) {
+        const currentValue = dropdown.value;
+        const filterName = dropdown.getAttribute('data-filter');
+
+        // Clear existing options (except the first "All" option)
+        while (dropdown.options.length > 1) {
+            dropdown.remove(1);
+        }
+
+        // Add new options
+        options.forEach(option => {
+            const optionElement = document.createElement('option');
+            optionElement.value = option;
+            optionElement.textContent = option;
+            dropdown.appendChild(optionElement);
+        });
+
+        // Restore selected value if it still exists in options
+        if (currentValue && options.includes(currentValue)) {
+            dropdown.value = currentValue;
+        } else {
+            dropdown.value = '';
+            // Update filter state if the value was reset
+            if (currentValue) {
+                state.filterState[filterName] = '';
+            }
+        }
     }
 
     // Apply all filters and sorting
     function applyFilters() {
         // Start with all products
         state.filteredProducts = [...state.allProducts];
-        
+
         // Apply column-specific filters
         for (const [column, value] of Object.entries(state.filterState)) {
             if (!value) continue;
-            
+
             state.filteredProducts = state.filteredProducts.filter(product => {
                 switch(column) {
                     case 'title':
-                        return product.title && product.title.toLowerCase().includes(value);
+                        return product.title && product.title.toLowerCase().includes(value.toLowerCase());
                     case 'vendor':
-                        return product.vendor && product.vendor.toLowerCase().includes(value);
+                        return product.vendor && product.vendor.toLowerCase().includes(value.toLowerCase());
                     case 'type':
-                        return product.product_type && product.product_type.toLowerCase().includes(value);
+                        return product.product_type && product.product_type.toLowerCase().includes(value.toLowerCase());
                     case 'price':
                         const price = getLowestPrice(product);
-                        return price.toString().includes(value);
+                        return price.toString().includes(value.toLowerCase());
                     case 'created':
-                        return product.created_at && formatDate(product.created_at).toLowerCase().includes(value);
+                        return product.created_at && formatDate(product.created_at).toLowerCase().includes(value.toLowerCase());
+                    case 'brand':
+                        if (product.title) {
+                            const parts = product.title.split('|').map(part => part.trim());
+                            return parts.length >= 1 && parts[0] === value;
+                        }
+                        return false;
+                    case 'gender':
+                        if (product.title) {
+                            const parts = product.title.split('|').map(part => part.trim());
+                            return parts.length >= 2 && parts[1] === value;
+                        }
+                        return false;
                     default:
                         return true;
                 }
             });
         }
-        
+
         // Update count
         elements.countSpan.textContent = state.allProducts.length;
-        
+        elements.showingCountSpan.textContent = `${state.filteredProducts.length} of ${state.allProducts.length}`;
+
+        // Update dropdown options based on filtered products
+        extractProductAttributes();
+        createFilterDropdowns();
+
         // Reset to first page when filtering
         state.currentPage = 1;
         updatePagination();
-        
+
         // Apply current sort if any
         if (state.currentSortColumn) {
             sortProducts(state.currentSortColumn, state.sortDirection, false);
@@ -281,24 +503,24 @@ document.addEventListener('DOMContentLoaded', () => {
         } else {
             state.sortDirection = 'asc';
         }
-        
+
         state.currentSortColumn = column;
-        
+
         // Reset all sort icons
         document.querySelectorAll('.products-table th .th-title i').forEach(icon => {
             icon.className = 'fas fa-sort';
         });
-        
+
         // Set the correct icon for the current sort column
         const th = document.querySelector(`.products-table th[data-sort="${column}"] .th-title i`);
         if (th) {
             th.className = state.sortDirection === 'asc' ? 'fas fa-sort-up' : 'fas fa-sort-down';
         }
-        
+
         // Sort the products
         state.filteredProducts.sort((a, b) => {
             let valueA, valueB;
-            
+
             switch (column) {
                 case 'title':
                     valueA = a.title || '';
@@ -324,7 +546,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 default:
                     return 0;
             }
-            
+
             // String comparison
             if (state.sortDirection === 'asc') {
                 return valueA.localeCompare(valueB);
@@ -332,23 +554,23 @@ document.addEventListener('DOMContentLoaded', () => {
                 return valueB.localeCompare(valueA);
             }
         });
-        
+
         renderProductsPage();
     }
 
     // Handle sort dropdown change
     function handleSortSelect() {
         const value = elements.sortSelect.value;
-        
+
         if (!value) return;
-        
+
         const [column, direction] = value.split('_');
-        
+
         let sortCol = column;
         if (column === 'date') {
             sortCol = 'created';
         }
-        
+
         sortProducts(sortCol, direction, false);
     }
 
@@ -357,7 +579,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!product.variants || product.variants.length === 0) {
             return 0;
         }
-        
+
         let lowestPrice = Infinity;
         product.variants.forEach(variant => {
             const price = parseFloat(variant.price || 0);
@@ -365,7 +587,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 lowestPrice = price;
             }
         });
-        
+
         return lowestPrice === Infinity ? 0 : lowestPrice;
     }
 
@@ -376,12 +598,12 @@ document.addEventListener('DOMContentLoaded', () => {
         if (formatPriceCache.has(cacheKey)) {
             return formatPriceCache.get(cacheKey);
         }
-        
+
         const formatted = new Intl.NumberFormat('en-US', {
             style: 'currency',
             currency: 'USD'
         }).format(price);
-        
+
         formatPriceCache.set(cacheKey, formatted);
         return formatted;
     }
@@ -392,13 +614,13 @@ document.addEventListener('DOMContentLoaded', () => {
         if (formatDateCache.has(dateString)) {
             return formatDateCache.get(dateString);
         }
-        
+
         const formatted = new Date(dateString).toLocaleDateString('en-US', {
             year: 'numeric',
             month: 'short',
             day: 'numeric'
         });
-        
+
         formatDateCache.set(dateString, formatted);
         return formatted;
     }
@@ -406,7 +628,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // Toggle expand/collapse variants
     function toggleVariants(product, row) {
         const productId = product.id;
-        
+
         // Check if this product is already expanded
         if (state.expandedProducts.has(productId)) {
             // Find and remove the variant row
@@ -415,7 +637,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 row.parentNode.removeChild(variantRow);
             }
             state.expandedProducts.delete(productId);
-            
+
             // Update the button icon
             const expandButton = row.querySelector('.expand-button');
             expandButton.innerHTML = '<i class="fas fa-chevron-down"></i> Show Variants';
@@ -423,94 +645,94 @@ document.addEventListener('DOMContentLoaded', () => {
             // Create a new row to contain the variants
             const newRow = document.createElement('tr');
             newRow.className = 'variant-row-container';
-            
+
             // Create a single cell that spans all columns
             const cell = document.createElement('td');
-            cell.colSpan = 6; // Match the number of columns in the main table
-            
+            cell.colSpan = 7; // Match the number of columns in the main table (including image column)
+
             // Add touch-friendly class for mobile
             if (window.innerWidth <= 768) {
                 cell.className = 'mobile-optimized';
             }
-            
+
             // Create variants section
             const variantContainer = document.createElement('div');
             variantContainer.id = `variants-${productId}`;
             variantContainer.className = 'variant-container';
-            
+
             // Create variant header
             const variantHeader = document.createElement('div');
             variantHeader.className = 'variant-header';
             variantHeader.innerHTML = `<span>Variants (${product.variants.length})</span>`;
             variantContainer.appendChild(variantHeader);
-            
+
             // Create variant table
             if (product.variants.length > 0) {
                 const variantTable = document.createElement('table');
                 variantTable.className = 'variant-table';
-                
+
                 // Create table header
                 const tableHeader = document.createElement('thead');
                 const headerRow = document.createElement('tr');
-                
+
                 const headers = ['Title', 'SKU', 'Price', 'Available', 'Option1', 'Option2', 'Option3', 'Actions'];
                 headers.forEach(header => {
                     const th = document.createElement('th');
                     th.textContent = header;
                     headerRow.appendChild(th);
                 });
-                
+
                 tableHeader.appendChild(headerRow);
                 variantTable.appendChild(tableHeader);
-                
+
                 // Create table body
                 const tableBody = document.createElement('tbody');
-                
+
                 // Create document fragment to improve performance
                 const fragment = document.createDocumentFragment();
-                
+
                 product.variants.forEach(variant => {
                     const variantRow = document.createElement('tr');
                     variantRow.className = 'variant-row';
-                    
+
                     // Title cell
                     const titleCell = document.createElement('td');
                     titleCell.textContent = variant.title || 'Default Title';
                     variantRow.appendChild(titleCell);
-                    
+
                     // SKU cell
                     const skuCell = document.createElement('td');
                     skuCell.textContent = variant.sku || 'N/A';
                     variantRow.appendChild(skuCell);
-                    
+
                     // Price cell
                     const priceCell = document.createElement('td');
                     priceCell.textContent = variant.price ? formatPrice(parseFloat(variant.price)) : 'N/A';
                     variantRow.appendChild(priceCell);
-                    
+
                     // Available cell
                     const availableCell = document.createElement('td');
                     availableCell.textContent = variant.available ? 'Yes' : 'No';
                     variantRow.appendChild(availableCell);
-                    
+
                     // Option1 cell
                     const option1Cell = document.createElement('td');
                     option1Cell.textContent = variant.option1 || 'N/A';
                     variantRow.appendChild(option1Cell);
-                    
+
                     // Option2 cell
                     const option2Cell = document.createElement('td');
                     option2Cell.textContent = variant.option2 || 'N/A';
                     variantRow.appendChild(option2Cell);
-                    
+
                     // Option3 cell
                     const option3Cell = document.createElement('td');
                     option3Cell.textContent = variant.option3 || 'N/A';
                     variantRow.appendChild(option3Cell);
-                    
+
                     // Actions cell
                     const actionsCell = document.createElement('td');
-                    
+
                     const checkoutButton = document.createElement('button');
                     checkoutButton.className = 'action-button';
                     checkoutButton.innerHTML = '<i class="fas fa-shopping-cart"></i> Buy';
@@ -519,13 +741,13 @@ document.addEventListener('DOMContentLoaded', () => {
                         const checkoutUrl = `https://${storeName}.myshopify.com/cart/${variant.id}:1`;
                         window.open(checkoutUrl, '_blank');
                     });
-                    
+
                     actionsCell.appendChild(checkoutButton);
                     variantRow.appendChild(actionsCell);
-                    
+
                     fragment.appendChild(variantRow);
                 });
-                
+
                 tableBody.appendChild(fragment);
                 variantTable.appendChild(tableBody);
                 variantContainer.appendChild(variantTable);
@@ -536,15 +758,15 @@ document.addEventListener('DOMContentLoaded', () => {
                 noVariantsMessage.style.textAlign = 'center';
                 variantContainer.appendChild(noVariantsMessage);
             }
-            
+
             // Add the variant container to the cell
             cell.appendChild(variantContainer);
             newRow.appendChild(cell);
-            
+
             // Insert the new row after the product row
             row.parentNode.insertBefore(newRow, row.nextSibling);
             state.expandedProducts.add(productId);
-            
+
             // Update the button icon
             const expandButton = row.querySelector('.expand-button');
             expandButton.innerHTML = '<i class="fas fa-chevron-up"></i> Hide Variants';
@@ -554,26 +776,26 @@ document.addEventListener('DOMContentLoaded', () => {
     // Update pagination controls
     function updatePagination() {
         state.totalPages = Math.ceil(state.filteredProducts.length / state.productsPerPage);
-        
+
         // Update buttons state
         elements.prevPageButton.disabled = state.currentPage <= 1;
         elements.nextPageButton.disabled = state.currentPage >= state.totalPages;
-        
+
         // Generate page numbers
         elements.pageNumbersContainer.innerHTML = '';
-        
+
         // Determine visible page range
         let startPage = Math.max(1, state.currentPage - 2);
         let endPage = Math.min(state.totalPages, startPage + 4);
-        
+
         // Adjust if we're near the end
         if (endPage - startPage < 4) {
             startPage = Math.max(1, endPage - 4);
         }
-        
+
         // Create a document fragment for better performance
         const fragment = document.createDocumentFragment();
-        
+
         // First page link if not in range
         if (startPage > 1) {
             fragment.appendChild(createPageNumberButton(1));
@@ -581,12 +803,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 fragment.appendChild(createEllipsis());
             }
         }
-        
+
         // Page numbers
         for (let i = startPage; i <= endPage; i++) {
             fragment.appendChild(createPageNumberButton(i));
         }
-        
+
         // Last page link if not in range
         if (endPage < state.totalPages) {
             if (endPage < state.totalPages - 1) {
@@ -594,11 +816,11 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             fragment.appendChild(createPageNumberButton(state.totalPages));
         }
-        
+
         // Add all elements at once
         elements.pageNumbersContainer.appendChild(fragment);
     }
-    
+
     // Create a page number button (doesn't add to DOM)
     function createPageNumberButton(pageNum) {
         const pageButton = document.createElement('div');
@@ -607,7 +829,7 @@ document.addEventListener('DOMContentLoaded', () => {
         pageButton.addEventListener('click', () => goToPage(pageNum));
         return pageButton;
     }
-    
+
     // Create ellipsis for pagination (doesn't add to DOM)
     function createEllipsis() {
         const ellipsis = document.createElement('div');
@@ -616,13 +838,13 @@ document.addEventListener('DOMContentLoaded', () => {
         ellipsis.style.cursor = 'default';
         return ellipsis;
     }
-    
+
     // Go to specific page
     function goToPage(pageNum) {
         state.currentPage = pageNum;
         renderProductsPage();
         updatePagination();
-        
+
         // Scroll to top of table
         elements.productsTable.scrollIntoView({ behavior: 'smooth' });
     }
@@ -631,23 +853,23 @@ document.addEventListener('DOMContentLoaded', () => {
     function renderProductsPage() {
         // Clear any expanded products when changing pages
         state.expandedProducts.clear();
-        
+
         const startIndex = (state.currentPage - 1) * state.productsPerPage;
         const endIndex = Math.min(startIndex + state.productsPerPage, state.filteredProducts.length);
         const currentPageProducts = state.filteredProducts.slice(startIndex, endIndex);
-        
+
         elements.showingCountSpan.textContent = `${startIndex + 1}-${endIndex} of ${state.filteredProducts.length}`;
-        
+
         // Clear table body
         elements.productsBody.innerHTML = '';
-        
+
         // Create document fragment for better performance
         const fragment = document.createDocumentFragment();
-        
+
         if (currentPageProducts.length === 0) {
             const row = document.createElement('tr');
             const cell = document.createElement('td');
-            cell.colSpan = 6;
+            cell.colSpan = 7; // Match the number of columns in the main table (including image column)
             cell.textContent = 'No products found';
             cell.style.textAlign = 'center';
             cell.style.padding = '2rem';
@@ -657,67 +879,98 @@ document.addEventListener('DOMContentLoaded', () => {
             currentPageProducts.forEach(product => {
                 const row = document.createElement('tr');
                 row.setAttribute('data-product-id', product.id);
-                
+
+                // Image cell
+                const imageCell = document.createElement('td');
+                imageCell.className = 'product-image-cell';
+
+                // Check if product has images
+                if (product.images && product.images.length > 0) {
+                    const imageContainer = document.createElement('div');
+                    imageContainer.className = 'product-image-zoom-container';
+
+                    // Create thumbnail image
+                    const thumbnailImg = document.createElement('img');
+                    thumbnailImg.className = 'product-image-thumbnail';
+                    thumbnailImg.src = product.images[0].src;
+                    thumbnailImg.alt = product.title || 'Product image';
+                    imageContainer.appendChild(thumbnailImg);
+
+                    // Create zoom image
+                    const zoomImg = document.createElement('img');
+                    zoomImg.className = 'product-image-zoom';
+                    zoomImg.src = product.images[0].src;
+                    zoomImg.alt = product.title || 'Product image';
+                    imageContainer.appendChild(zoomImg);
+
+                    imageCell.appendChild(imageContainer);
+                } else {
+                    // No image placeholder
+                    imageCell.innerHTML = '<div style="width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; background-color: #f4f6f8;"><i class="fas fa-image" style="color: #dfe3e8;"></i></div>';
+                }
+
+                row.appendChild(imageCell);
+
                 // Title cell
                 const titleCell = document.createElement('td');
                 titleCell.textContent = product.title || 'N/A';
                 row.appendChild(titleCell);
-                
+
                 // Vendor cell
                 const vendorCell = document.createElement('td');
                 vendorCell.textContent = product.vendor || 'N/A';
                 row.appendChild(vendorCell);
-                
+
                 // Type cell
                 const typeCell = document.createElement('td');
                 typeCell.textContent = product.product_type || 'N/A';
                 row.appendChild(typeCell);
-                
+
                 // Price cell
                 const priceCell = document.createElement('td');
                 const price = getLowestPrice(product);
                 priceCell.textContent = price ? formatPrice(price) : 'N/A';
                 row.appendChild(priceCell);
-                
+
                 // Created date cell
                 const createdCell = document.createElement('td');
                 createdCell.textContent = product.created_at ? formatDate(product.created_at) : 'N/A';
                 row.appendChild(createdCell);
-                
+
                 // Actions cell
                 const actionsCell = document.createElement('td');
-                
+
                 // Create buttons
                 const buttonsHTML = `
                     <button class="action-button"><i class="fas fa-external-link-alt"></i> View</button>
                     <button class="action-button" style="margin-left: 0.5rem"><i class="fas fa-code"></i> JSON</button>
                     <button class="expand-button" style="margin-left: 0.5rem"><i class="fas fa-chevron-down"></i> Show Variants</button>
                 `;
-                
+
                 actionsCell.innerHTML = buttonsHTML;
-                
+
                 // Add event listeners after DOM insertion to improve performance
                 actionsCell.querySelector('.action-button:first-child').addEventListener('click', () => {
                     const storeName = elements.storeNameInput.value.trim();
                     const productUrl = `https://${storeName}.myshopify.com/products/${product.handle}`;
                     window.open(productUrl, '_blank');
                 });
-                
+
                 actionsCell.querySelector('.action-button:nth-child(2)').addEventListener('click', () => {
                     const storeName = elements.storeNameInput.value.trim();
                     const jsonUrl = `https://${storeName}.myshopify.com/products/${product.handle}.json`;
                     window.open(jsonUrl, '_blank');
                 });
-                
+
                 actionsCell.querySelector('.expand-button').addEventListener('click', () => {
                     toggleVariants(product, row);
                 });
-                
+
                 row.appendChild(actionsCell);
                 fragment.appendChild(row);
             });
         }
-        
+
         // Add all rows at once for better performance
         elements.productsBody.appendChild(fragment);
     }
@@ -728,15 +981,32 @@ document.addEventListener('DOMContentLoaded', () => {
         state.expandedProducts.clear();
         showInfoPanel(false);
         showProductsTable(false);
-        
+
         // Reset filters
         elements.columnFilters.forEach(filter => {
             filter.value = '';
         });
-        
+
+        // Reset dropdown filters if they exist
+        if (elements.brandFilter) {
+            elements.brandFilter.value = '';
+        }
+        if (elements.genderFilter) {
+            elements.genderFilter.value = '';
+        }
+        if (elements.typeFilter) {
+            elements.typeFilter.value = '';
+        }
+
+        // Reset filter state
         Object.keys(state.filterState).forEach(key => {
             state.filterState[key] = '';
         });
+
+        // Reset filter options
+        state.brandOptions = [];
+        state.genderOptions = [];
+        state.typeOptions = [];
     }
 
     function showLoader(show) {
@@ -749,7 +1019,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function showProductsTable(show) {
         elements.productsTable.classList.toggle('hidden', !show);
-        
+
         // Show scroll hint on mobile devices
         if (show) {
             updateScrollHintVisibility();
@@ -757,12 +1027,12 @@ document.addEventListener('DOMContentLoaded', () => {
             elements.tableScrollHint.classList.add('hidden');
         }
     }
-    
+
     // Update scroll hint visibility based on screen width
     function updateScrollHintVisibility() {
         elements.tableScrollHint.classList.toggle('hidden', window.innerWidth > 768);
     }
-    
+
     // Update table scroll hint visibility on window resize
     window.addEventListener('resize', () => {
         if (!elements.productsTable.classList.contains('hidden')) {
@@ -778,4 +1048,101 @@ document.addEventListener('DOMContentLoaded', () => {
     function hideError() {
         elements.errorMessage.classList.add('hidden');
     }
+
+    // Function to export products to HTML
+    function exportProductsToHtml() {
+        // Check if we have products to export
+        if (state.filteredProducts.length === 0) {
+            showError('No products to export. Please fetch products first.');
+            return;
+        }
+
+        // Show loading indicator
+        showLoader(true);
+        // Change loader text to indicate HTML generation
+        const loaderText = document.querySelector('#loader p');
+        const originalLoaderText = loaderText.textContent;
+        loaderText.textContent = 'Generating HTML... This may take a moment.';
+
+        try {
+            // Get store name for the file title
+            const storeName = elements.currentStoreSpan.textContent;
+
+            // Create HTML content
+            let htmlContent = '<!DOCTYPE html>\n<html lang="en">\n<head>\n';
+            htmlContent += '    <meta charset="UTF-8">\n';
+            htmlContent += '    <meta name="viewport" content="width=device-width, initial-scale=1.0">\n';
+            htmlContent += '    <title>' + storeName + ' Products</title>\n';
+            htmlContent += '    <style>\n';
+            htmlContent += '        body { font-family: Arial, sans-serif; margin: 0; padding: 20px; background-color: #f5f5f5; }\n';
+            htmlContent += '        h1 { color: #333; text-align: center; margin-bottom: 20px; }\n';
+            htmlContent += '        table { width: 100%; border-collapse: collapse; background-color: white; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }\n';
+            htmlContent += '        th, td { padding: 12px 15px; text-align: left; border-bottom: 1px solid #ddd; }\n';
+            htmlContent += '        th { background-color: #5c6ac4; color: white; font-weight: bold; }\n';
+            htmlContent += '        tr:hover { background-color: #f5f5f5; }\n';
+            htmlContent += '        img { max-width: 100px; max-height: 100px; display: block; }\n';
+            htmlContent += '    </style>\n';
+            htmlContent += '</head>\n<body>\n';
+            htmlContent += '    <h1>' + storeName + ' Products</h1>\n';
+            htmlContent += '    <table>\n';
+            htmlContent += '        <thead>\n';
+            htmlContent += '            <tr>\n';
+            htmlContent += '                <th>Image</th>\n';
+            htmlContent += '                <th>Item Name</th>\n';
+            htmlContent += '                <th>Item Price</th>\n';
+            htmlContent += '            </tr>\n';
+            htmlContent += '        </thead>\n';
+            htmlContent += '        <tbody>\n';
+
+            // Add each product to the HTML table
+            state.filteredProducts.forEach(product => {
+                // Get image URL
+                const imageUrl = product.images && product.images.length > 0 
+                    ? product.images[0].src 
+                    : '';
+
+                // Get product title
+                const title = product.title || 'N/A';
+
+                // Get product price
+                const price = getLowestPrice(product);
+                const formattedPrice = price ? formatPrice(price) : 'N/A';
+
+                // Add row to HTML table
+                htmlContent += '            <tr>\n';
+                htmlContent += '                <td>' + (imageUrl ? '<img src="' + imageUrl + '" alt="' + title + '">' : 'No image') + '</td>\n';
+                htmlContent += '                <td>' + title + '</td>\n';
+                htmlContent += '                <td>' + formattedPrice + '</td>\n';
+                htmlContent += '            </tr>\n';
+            });
+
+            // Close the HTML content
+            htmlContent += '        </tbody>\n';
+            htmlContent += '    </table>\n';
+            htmlContent += '</body>\n</html>';
+
+            // Create a blob with the HTML content
+            const blob = new Blob([htmlContent], { type: 'text/html' });
+
+            // Create a download link
+            const downloadLink = document.createElement('a');
+            downloadLink.href = URL.createObjectURL(blob);
+            downloadLink.download = storeName.replace(/\s+/g, '-') + '-products.html';
+
+            // Trigger download
+            document.body.appendChild(downloadLink);
+            downloadLink.click();
+            document.body.removeChild(downloadLink);
+
+            // Hide loader and restore original text
+            showLoader(false);
+            loaderText.textContent = originalLoaderText;
+        } catch (error) {
+            console.error('Error generating HTML:', error);
+            showError('Error generating HTML. Please try again.');
+            showLoader(false);
+            loaderText.textContent = originalLoaderText;
+        }
+    }
+
 });

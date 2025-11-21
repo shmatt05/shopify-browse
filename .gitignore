@@ -39,3 +39,4 @@ build/
 # Firebase cached emulator data
 emulator-data/
 firebase-export-*
+.qodo

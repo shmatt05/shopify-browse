@@ -140,6 +140,29 @@ input:focus, select:focus {
     color: var(--light-text-color);
 }
 
+.export-button {
+    background-color: var(--secondary-color);
+    color: white;
+    border: none;
+    border-radius: 4px;
+    padding: 0.5rem 1rem;
+    font-size: 0.9rem;
+    cursor: pointer;
+    transition: background-color 0.3s;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-top: 0.5rem;
+}
+
+.export-button:hover {
+    background-color: #3aa8a6;
+}
+
+.export-button i {
+    font-size: 0.9rem;
+}
+
 .filter-container {
     display: flex;
     gap: 1rem;
@@ -278,6 +301,64 @@ input:focus, select:focus {
     display: none;
 }
 
+/* Image column and hover zoom */
+.image-column {
+    width: 80px;
+    min-width: 80px;
+}
+
+.product-image-cell {
+    position: relative;
+    width: 80px;
+    height: 80px;
+    padding: 0 !important;
+    overflow: hidden;
+}
+
+.product-image-thumbnail {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+    cursor: pointer;
+}
+
+.product-image-zoom-container {
+    position: relative;
+}
+
+.product-image-zoom {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 1000;
+    display: none;
+    max-width: 80vw;
+    max-height: 80vh;
+    border: 2px solid var(--border-color);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    background-color: white;
+    pointer-events: none;
+}
+
+.product-image-cell:hover .product-image-zoom {
+    display: block;
+}
+
+/* Mobile adjustments for image column */
+@media (max-width: 768px) {
+    .image-column {
+        width: 60px;
+        min-width: 60px;
+    }
+
+    .product-image-cell {
+        width: 60px;
+        height: 60px;
+    }
+}
+
 /* Variants section */
 .variant-container {
     background-color: var(--background-color);
@@ -294,7 +375,7 @@ input:focus, select:focus {
     display: block;
     /* Add these lines to span across all columns */
     grid-column: 1 / -1;
-    colspan: 6;
+    colspan: 7;
 }
 
 .variant-header {
@@ -471,7 +552,7 @@ input:focus, select:focus {
             display: none;
         }
     }
-    
+
     /* Show a horizontal scroll indicator */
     .table-scroll-hint {
         display: flex;
@@ -481,12 +562,12 @@ input:focus, select:focus {
         color: var(--light-text-color);
         font-size: 0.8rem;
     }
-    
+
     .table-scroll-hint i {
         animation: scroll-hint 1.5s infinite;
         margin: 0 0.25rem;
     }
-    
+
     @keyframes scroll-hint {
         0% { transform: translateX(-3px); }
         50% { transform: translateX(3px); }
@@ -497,31 +578,31 @@ input:focus, select:focus {
     .variant-container {
         padding: 0.5rem;
     }
-    
+
     /* Mobile-optimized cell for better touch interaction */
     .mobile-optimized {
         padding: 0 !important;
     }
-    
+
     .variant-table {
         display: block;
         width: 100%;
         overflow-x: auto;
         -webkit-overflow-scrolling: touch;
     }
-    
+
     .variant-table th,
     .variant-table td {
         padding: 0.4rem;
         white-space: nowrap;
     }
-    
+
     /* Smaller action buttons on mobile */
     .action-button {
         padding: 0.3rem 0.5rem;
         font-size: 0.8rem;
     }
-    
+
     .expand-button {
         font-size: 0.8rem;
     }
@@ -537,13 +618,13 @@ input:focus, select:focus {
         flex-wrap: wrap;
         justify-content: center;
     }
-    
+
     .page-number {
         width: 1.8rem;
         height: 1.8rem;
         font-size: 0.9rem;
     }
-    
+
     .pagination-button {
         padding: 0.4rem 0.8rem;
         font-size: 0.9rem;

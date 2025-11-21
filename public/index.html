@@ -12,13 +12,14 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
+
 </head>
 <body>
     <div class="container">
         <header>
             <h1><i class="fas fa-shopping-bag"></i> Shopify Product Browser</h1>
         </header>
-        
+
         <div class="search-container">
             <div class="input-group">
                 <input type="text" id="store-name" placeholder="Enter Shopify store name (e.g. '260-sample-sale')">
@@ -36,6 +37,9 @@
             <div class="store-info">
                 <h2 id="store-title">Store: <span id="current-store"></span></h2>
                 <p id="product-count">Products: <span id="count">0</span> / Showing: <span id="showing-count">0</span></p>
+                <button id="export-html-button" class="export-button" title="Export products to HTML">
+                    <i class="fas fa-file-export"></i> Export HTML
+                </button>
             </div>
             <div class="filter-container">
                 <select id="sort-select">
@@ -57,6 +61,11 @@
             <table id="products-table" class="products-table hidden">
                 <thead>
                     <tr>
+                        <th class="image-column">
+                            <div class="th-content">
+                                <div class="th-title">Image</div>
+                            </div>
+                        </th>
                         <th data-sort="title">
                             <div class="th-content">
                                 <div class="th-title">Title <i class="fas fa-sort"></i></div>
@@ -104,7 +113,7 @@
                     <!-- Products will be populated here -->
                 </tbody>
             </table>
-            
+
             <div class="pagination-container">
                 <button id="prev-page" class="pagination-button"><i class="fas fa-chevron-left"></i> Previous</button>
                 <div id="page-numbers" class="page-numbers">
