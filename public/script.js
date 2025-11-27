@@ -21,6 +21,9 @@ document.addEventListener('DOMContentLoaded', () => {
         exportHtmlButton: document.getElementById('export-html-button'),
         filterContainer: document.querySelector('.filter-container'),
         availableOnlyCheckbox: document.getElementById('available-only-checkbox'),
+        sizeFilterContainer: document.getElementById('size-filter-container'),
+        sizeFilter: document.getElementById('size-filter'),
+        clearSizesButton: document.getElementById('clear-sizes'),
         brandFilter: null, // Will be created dynamically
         genderFilter: null, // Will be created dynamically
         typeFilter: null // Will be created dynamically
@@ -46,9 +49,11 @@ document.addEventListener('DOMContentLoaded', () => {
             gender: ''
         },
         showAvailableOnly: false,
+        selectedSizes: [],
         brandOptions: [],
         genderOptions: [],
-        typeOptions: []
+        typeOptions: [],
+        sizeOptions: []
     };
 
     // Event listeners - use event delegation where possible
@@ -60,6 +65,17 @@ document.addEventListener('DOMContentLoaded', () => {
     elements.exportHtmlButton.addEventListener('click', exportProductsToHtml);
     elements.availableOnlyCheckbox.addEventListener('change', (e) => {
         state.showAvailableOnly = e.target.checked;
+        applyFilters();
+    });
+    
+    elements.sizeFilter.addEventListener('change', (e) => {
+        state.selectedSizes = Array.from(e.target.selectedOptions).map(option => option.value);
+        applyFilters();
+    });
+    
+    elements.clearSizesButton.addEventListener('click', () => {
+        elements.sizeFilter.selectedIndex = -1;
+        state.selectedSizes = [];
         applyFilters();
     });
 
@@ -267,11 +283,12 @@ document.addEventListener('DOMContentLoaded', () => {
         fetchNextPage();
     }
 
-    // Extract brand, gender, and type from products
+    // Extract brand, gender, type, and sizes from products
     function extractProductAttributes() {
         const brands = new Set();
         const genders = new Set();
         const types = new Set();
+        const sizes = new Set();
 
         // Use filteredProducts instead of allProducts to only show options from filtered items
         state.filteredProducts.forEach(product => {
@@ -292,12 +309,29 @@ document.addEventListener('DOMContentLoaded', () => {
             if (product.product_type) {
                 types.add(product.product_type);
             }
+
+            // Extract sizes from variant titles
+            if (product.variants && product.variants.length > 0) {
+                product.variants.forEach(variant => {
+                    if (variant.title) {
+                        // Extract numbers from variant title (e.g., "Unisex / 39" -> "39")
+                        // Match numbers that could be sizes (including decimals like 8.5)
+                        const sizeMatches = variant.title.match(/\b\d+(?:\.\d+)?\b/g);
+                        if (sizeMatches) {
+                            sizeMatches.forEach(size => sizes.add(size));
+                        }
+                    }
+                });
+            }
         });
 
         // Convert sets to sorted arrays
         state.brandOptions = Array.from(brands).sort();
         state.genderOptions = Array.from(genders).sort();
         state.typeOptions = Array.from(types).sort();
+        
+        // Sort sizes numerically
+        state.sizeOptions = Array.from(sizes).sort((a, b) => parseFloat(a) - parseFloat(b));
     }
 
     // Create dropdown filters
@@ -324,6 +358,36 @@ document.addEventListener('DOMContentLoaded', () => {
             elements.filterContainer.appendChild(elements.typeFilter);
         } else {
             updateDropdownOptions(elements.typeFilter, state.typeOptions);
+        }
+
+        // Update size filter
+        updateSizeFilter();
+    }
+
+    // Update size filter options
+    function updateSizeFilter() {
+        // Clear existing options
+        elements.sizeFilter.innerHTML = '';
+
+        // Show or hide the size filter container based on whether we have sizes
+        if (state.sizeOptions.length > 0) {
+            elements.sizeFilterContainer.classList.remove('hidden');
+
+            // Add size options
+            state.sizeOptions.forEach(size => {
+                const option = document.createElement('option');
+                option.value = size;
+                option.textContent = size;
+                
+                // Keep selected sizes selected
+                if (state.selectedSizes.includes(size)) {
+                    option.selected = true;
+                }
+                
+                elements.sizeFilter.appendChild(option);
+            });
+        } else {
+            elements.sizeFilterContainer.classList.add('hidden');
         }
     }
 
@@ -449,6 +513,23 @@ document.addEventListener('DOMContentLoaded', () => {
             state.filteredProducts = state.filteredProducts.filter(product => {
                 // Check if product has at least one available variant
                 return product.variants && product.variants.some(variant => variant.available === true);
+            });
+        }
+
+        // Apply size filter
+        if (state.selectedSizes.length > 0) {
+            state.filteredProducts = state.filteredProducts.filter(product => {
+                // Check if product has at least one variant with a selected size
+                return product.variants && product.variants.some(variant => {
+                    if (!variant.title) return false;
+                    
+                    // Extract numbers from variant title
+                    const sizeMatches = variant.title.match(/\b\d+(?:\.\d+)?\b/g);
+                    if (!sizeMatches) return false;
+                    
+                    // Check if any extracted size matches a selected size
+                    return sizeMatches.some(size => state.selectedSizes.includes(size));
+                });
             });
         }
 
@@ -1016,6 +1097,11 @@ document.addEventListener('DOMContentLoaded', () => {
         elements.availableOnlyCheckbox.checked = false;
         state.showAvailableOnly = false;
 
+        // Reset size filter
+        elements.sizeFilter.selectedIndex = -1;
+        elements.sizeFilterContainer.classList.add('hidden');
+        state.selectedSizes = [];
+
         // Reset filter state
         Object.keys(state.filterState).forEach(key => {
             state.filterState[key] = '';
@@ -1025,6 +1111,7 @@ document.addEventListener('DOMContentLoaded', () => {
         state.brandOptions = [];
         state.genderOptions = [];
         state.typeOptions = [];
+        state.sizeOptions = [];
     }
 
     function showLoader(show) {
