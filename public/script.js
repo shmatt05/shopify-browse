@@ -1186,6 +1186,12 @@ document.addEventListener('DOMContentLoaded', () => {
             htmlContent += '        th { background-color: #5c6ac4; color: white; font-weight: bold; }\n';
             htmlContent += '        tr:hover { background-color: #f5f5f5; }\n';
             htmlContent += '        img { max-width: 100px; max-height: 100px; display: block; }\n';
+            htmlContent += '        .variants-section { padding: 10px 15px; background-color: #f9fafb; }\n';
+            htmlContent += '        .variants-title { font-weight: bold; margin-bottom: 8px; color: #5c6ac4; font-size: 14px; }\n';
+            htmlContent += '        .variants-table { width: 100%; margin-top: 5px; background-color: white; font-size: 13px; }\n';
+            htmlContent += '        .variants-table th { background-color: #7c8fd4; padding: 6px 10px; font-size: 12px; }\n';
+            htmlContent += '        .variants-table td { padding: 6px 10px; }\n';
+            htmlContent += '        .no-variants { color: #999; font-style: italic; font-size: 13px; }\n';
             htmlContent += '    </style>\n';
             htmlContent += '</head>\n<body>\n';
             htmlContent += '    <h1>' + storeName + ' Products</h1>\n';
@@ -1219,6 +1225,56 @@ document.addEventListener('DOMContentLoaded', () => {
                 htmlContent += '                <td>' + title + '</td>\n';
                 htmlContent += '                <td>' + formattedPrice + '</td>\n';
                 htmlContent += '            </tr>\n';
+
+                // Add available variants section
+                const availableVariants = product.variants ? product.variants.filter(v => v.available) : [];
+                if (availableVariants.length > 0) {
+                    htmlContent += '            <tr>\n';
+                    htmlContent += '                <td colspan="3" class="variants-section">\n';
+                    htmlContent += '                    <div class="variants-title">Available Variants (' + availableVariants.length + '):</div>\n';
+                    htmlContent += '                    <table class="variants-table">\n';
+                    htmlContent += '                        <thead>\n';
+                    htmlContent += '                            <tr>\n';
+                    htmlContent += '                                <th>Variant</th>\n';
+                    htmlContent += '                                <th>SKU</th>\n';
+                    htmlContent += '                                <th>Price</th>\n';
+                    htmlContent += '                                <th>Options</th>\n';
+                    htmlContent += '                            </tr>\n';
+                    htmlContent += '                        </thead>\n';
+                    htmlContent += '                        <tbody>\n';
+
+                    availableVariants.forEach(variant => {
+                        const variantTitle = variant.title || 'Default Title';
+                        const variantSku = variant.sku || 'N/A';
+                        const variantPrice = variant.price ? formatPrice(parseFloat(variant.price)) : 'N/A';
+                        
+                        // Build options string
+                        const options = [];
+                        if (variant.option1) options.push(variant.option1);
+                        if (variant.option2) options.push(variant.option2);
+                        if (variant.option3) options.push(variant.option3);
+                        const optionsStr = options.length > 0 ? options.join(' / ') : 'N/A';
+
+                        htmlContent += '                            <tr>\n';
+                        htmlContent += '                                <td>' + variantTitle + '</td>\n';
+                        htmlContent += '                                <td>' + variantSku + '</td>\n';
+                        htmlContent += '                                <td>' + variantPrice + '</td>\n';
+                        htmlContent += '                                <td>' + optionsStr + '</td>\n';
+                        htmlContent += '                            </tr>\n';
+                    });
+
+                    htmlContent += '                        </tbody>\n';
+                    htmlContent += '                    </table>\n';
+                    htmlContent += '                </td>\n';
+                    htmlContent += '            </tr>\n';
+                } else {
+                    // Show message if no variants are available
+                    htmlContent += '            <tr>\n';
+                    htmlContent += '                <td colspan="3" class="variants-section">\n';
+                    htmlContent += '                    <div class="no-variants">No variants currently available</div>\n';
+                    htmlContent += '                </td>\n';
+                    htmlContent += '            </tr>\n';
+                }
             });
 
             // Close the HTML content
