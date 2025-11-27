@@ -20,6 +20,7 @@ document.addEventListener('DOMContentLoaded', () => {
         pageNumbersContainer: document.getElementById('page-numbers'),
         exportHtmlButton: document.getElementById('export-html-button'),
         filterContainer: document.querySelector('.filter-container'),
+        availableOnlyCheckbox: document.getElementById('available-only-checkbox'),
         brandFilter: null, // Will be created dynamically
         genderFilter: null, // Will be created dynamically
         typeFilter: null // Will be created dynamically
@@ -44,6 +45,7 @@ document.addEventListener('DOMContentLoaded', () => {
             brand: '',
             gender: ''
         },
+        showAvailableOnly: false,
         brandOptions: [],
         genderOptions: [],
         typeOptions: []
@@ -56,6 +58,10 @@ document.addEventListener('DOMContentLoaded', () => {
         if (e.key === 'Enter') fetchProducts();
     });
     elements.exportHtmlButton.addEventListener('click', exportProductsToHtml);
+    elements.availableOnlyCheckbox.addEventListener('change', (e) => {
+        state.showAvailableOnly = e.target.checked;
+        applyFilters();
+    });
 
     // Add click listeners to table headers for sorting using event delegation
     document.querySelector('.products-table thead').addEventListener('click', (e) => {
@@ -437,6 +443,14 @@ document.addEventListener('DOMContentLoaded', () => {
     function applyFilters() {
         // Start with all products
         state.filteredProducts = [...state.allProducts];
+
+        // Apply availability filter first
+        if (state.showAvailableOnly) {
+            state.filteredProducts = state.filteredProducts.filter(product => {
+                // Check if product has at least one available variant
+                return product.variants && product.variants.some(variant => variant.available === true);
+            });
+        }
 
         // Apply column-specific filters
         for (const [column, value] of Object.entries(state.filterState)) {
@@ -997,6 +1011,10 @@ document.addEventListener('DOMContentLoaded', () => {
         if (elements.typeFilter) {
             elements.typeFilter.value = '';
         }
+
+        // Reset availability checkbox
+        elements.availableOnlyCheckbox.checked = false;
+        state.showAvailableOnly = false;
 
         // Reset filter state
         Object.keys(state.filterState).forEach(key => {

@@ -185,6 +185,35 @@ input:focus, select:focus {
     border-color: var(--primary-color);
 }
 
+.checkbox-filter {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.8rem 1rem;
+    background-color: white;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background-color 0.3s;
+    user-select: none;
+}
+
+.checkbox-filter:hover {
+    background-color: var(--background-color);
+}
+
+.checkbox-filter input[type="checkbox"] {
+    width: 18px;
+    height: 18px;
+    cursor: pointer;
+    margin: 0;
+}
+
+.checkbox-filter span {
+    font-size: 1rem;
+    color: var(--text-color);
+}
+
 .results-container {
     background-color: white;
     border-radius: 8px;
@@ -546,6 +575,15 @@ input:focus, select:focus {
     .dropdown-filter {
         width: 100%;
         min-width: auto;
+        font-size: 0.95rem;
+    }
+
+    .checkbox-filter {
+        width: 100%;
+        justify-content: flex-start;
+    }
+
+    .checkbox-filter span {
         font-size: 0.95rem;
     }
 
