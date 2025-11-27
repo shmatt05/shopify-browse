@@ -283,9 +283,11 @@ input:focus, select:focus {
 
 .table-scroll-wrapper {
     width: 100%;
-    overflow-x: auto;
+    overflow-x: scroll;
+    overflow-y: visible;
     -webkit-overflow-scrolling: touch;
     border-radius: 4px;
+    touch-action: pan-x pan-y;
 }
 
 .products-table {
@@ -683,14 +685,17 @@ input:focus, select:focus {
         padding: 0;
         margin-bottom: 1rem;
         border-radius: 8px;
-        overflow: hidden;
+        overflow: visible;
     }
 
     /* Table scroll wrapper */
     .table-scroll-wrapper {
         width: 100%;
-        overflow-x: auto;
+        overflow-x: scroll;
+        overflow-y: visible;
         -webkit-overflow-scrolling: touch;
+        touch-action: pan-x pan-y;
+        scrollbar-width: thin;
     }
 
     /* Table optimizations for mobile */
