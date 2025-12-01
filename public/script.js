@@ -1491,6 +1491,23 @@ document.addEventListener('DOMContentLoaded', () => {
             font-size: 0.85rem;
             opacity: 0.9;
         }
+        .sortable {
+            cursor: pointer;
+            user-select: none;
+            transition: background 0.2s;
+        }
+        .sortable:hover {
+            background: #e9ecef;
+        }
+        .sort-icon {
+            opacity: 0.4;
+            margin-left: 4px;
+            font-size: 0.8rem;
+        }
+        .sortable.active .sort-icon {
+            opacity: 1;
+            color: #667eea;
+        }
         @media (max-width: 600px) {
             body { padding: 10px; }
             .card { padding: 16px; }
@@ -1548,18 +1565,18 @@ document.addEventListener('DOMContentLoaded', () => {
         <div class="card">
             <h2>🏪 Vendors Overview <span class="count">${vendorArray.length}</span></h2>
             ${vendorArray.length > 0 ? `
-            <table>
+            <table id="vendor-table">
                 <thead>
                     <tr>
-                        <th>Vendor Name</th>
-                        <th>First Product</th>
-                        <th>Latest Product</th>
-                        <th>Products</th>
+                        <th class="sortable" data-sort="name">Vendor Name <span class="sort-icon">↕</span></th>
+                        <th class="sortable" data-sort="first">First Product <span class="sort-icon">↕</span></th>
+                        <th class="sortable" data-sort="last">Latest Product <span class="sort-icon">↕</span></th>
+                        <th class="sortable" data-sort="count">Products <span class="sort-icon">↓</span></th>
                     </tr>
                 </thead>
                 <tbody>
                     ${vendorArray.map(vendor => `
-                    <tr>
+                    <tr data-name="${vendor.name}" data-first="${vendor.firstDate.getTime()}" data-last="${vendor.lastDate.getTime()}" data-count="${vendor.count}">
                         <td class="vendor-name">${vendor.name}</td>
                         <td class="date">${vendor.firstDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</td>
                         <td class="date">${vendor.lastDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</td>
@@ -1571,6 +1588,74 @@ document.addEventListener('DOMContentLoaded', () => {
             ` : '<p class="no-data">No vendor data available</p>'}
         </div>
     </div>
+
+    <script>
+        // Sorting functionality for vendor table
+        document.addEventListener('DOMContentLoaded', function() {
+            const table = document.getElementById('vendor-table');
+            if (!table) return;
+            
+            const headers = table.querySelectorAll('th.sortable');
+            let currentSort = { column: 'count', direction: 'desc' };
+            
+            headers.forEach(header => {
+                header.addEventListener('click', function() {
+                    const column = this.dataset.sort;
+                    
+                    // Toggle direction if same column, otherwise default direction
+                    if (currentSort.column === column) {
+                        currentSort.direction = currentSort.direction === 'asc' ? 'desc' : 'asc';
+                    } else {
+                        currentSort.column = column;
+                        // Default: name asc, dates desc, count desc
+                        currentSort.direction = column === 'name' ? 'asc' : 'desc';
+                    }
+                    
+                    sortTable(column, currentSort.direction);
+                    updateSortIcons(this, currentSort.direction);
+                });
+            });
+            
+            function sortTable(column, direction) {
+                const tbody = table.querySelector('tbody');
+                const rows = Array.from(tbody.querySelectorAll('tr'));
+                
+                rows.sort((a, b) => {
+                    let aVal, bVal;
+                    
+                    if (column === 'name') {
+                        aVal = a.dataset.name.toLowerCase();
+                        bVal = b.dataset.name.toLowerCase();
+                        return direction === 'asc' 
+                            ? aVal.localeCompare(bVal) 
+                            : bVal.localeCompare(aVal);
+                    } else if (column === 'first') {
+                        aVal = parseInt(a.dataset.first);
+                        bVal = parseInt(b.dataset.first);
+                    } else if (column === 'last') {
+                        aVal = parseInt(a.dataset.last);
+                        bVal = parseInt(b.dataset.last);
+                    } else if (column === 'count') {
+                        aVal = parseInt(a.dataset.count);
+                        bVal = parseInt(b.dataset.count);
+                    }
+                    
+                    return direction === 'asc' ? aVal - bVal : bVal - aVal;
+                });
+                
+                rows.forEach(row => tbody.appendChild(row));
+            }
+            
+            function updateSortIcons(activeHeader, direction) {
+                headers.forEach(h => {
+                    h.classList.remove('active');
+                    h.querySelector('.sort-icon').textContent = '↕';
+                });
+                activeHeader.classList.add('active');
+                activeHeader.querySelector('.sort-icon').textContent = direction === 'asc' ? '↑' : '↓';
+            }
+        });
+    </script>
 </body>
 </html>`;
 
