@@ -19,6 +19,7 @@ document.addEventListener('DOMContentLoaded', () => {
         nextPageButton: document.getElementById('next-page'),
         pageNumbersContainer: document.getElementById('page-numbers'),
         exportHtmlButton: document.getElementById('export-html-button'),
+        vendorReportButton: document.getElementById('vendor-report-button'),
         filterContainer: document.querySelector('.filter-container'),
         availableOnlyCheckbox: document.getElementById('available-only-checkbox'),
         sizeFilterContainer: document.getElementById('size-filter-container'),
@@ -63,6 +64,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (e.key === 'Enter') fetchProducts();
     });
     elements.exportHtmlButton.addEventListener('click', exportProductsToHtml);
+    elements.vendorReportButton.addEventListener('click', generateVendorReport);
     elements.availableOnlyCheckbox.addEventListener('change', (e) => {
         state.showAvailableOnly = e.target.checked;
         applyFilters();
@@ -1304,6 +1306,278 @@ document.addEventListener('DOMContentLoaded', () => {
             showLoader(false);
             loaderText.textContent = originalLoaderText;
         }
+    }
+
+    // Function to generate vendor report
+    function generateVendorReport() {
+        // Check if we have products
+        if (state.allProducts.length === 0) {
+            showError('No products to analyze. Please fetch products first.');
+            return;
+        }
+
+        const storeName = elements.currentStoreSpan.textContent;
+        const now = new Date();
+        const threeDaysAgo = new Date(now.getTime() - (3 * 24 * 60 * 60 * 1000));
+
+        // Separate events from other vendors
+        const recentEvents = [];
+        const vendorStats = {};
+
+        state.allProducts.forEach(product => {
+            const productType = (product.product_type || '').toLowerCase();
+            const vendor = product.vendor || 'Unknown';
+            const vendorLower = vendor.toLowerCase();
+            const createdAt = new Date(product.created_at);
+
+            // Check if this is an event (type is "event" case-insensitive)
+            const isEvent = productType === 'event';
+
+            if (isEvent) {
+                // Check if added in past 3 days
+                if (createdAt >= threeDaysAgo) {
+                    recentEvents.push({
+                        title: product.title,
+                        vendor: vendor,
+                        createdAt: createdAt,
+                        price: getLowestPrice(product),
+                        type: product.product_type
+                    });
+                }
+            } else {
+                // Regular vendor - aggregate stats
+                if (!vendorStats[vendor]) {
+                    vendorStats[vendor] = {
+                        name: vendor,
+                        firstDate: createdAt,
+                        lastDate: createdAt,
+                        count: 0
+                    };
+                }
+
+                vendorStats[vendor].count++;
+
+                if (createdAt < vendorStats[vendor].firstDate) {
+                    vendorStats[vendor].firstDate = createdAt;
+                }
+                if (createdAt > vendorStats[vendor].lastDate) {
+                    vendorStats[vendor].lastDate = createdAt;
+                }
+            }
+        });
+
+        // Sort recent events by date (newest first)
+        recentEvents.sort((a, b) => b.createdAt - a.createdAt);
+
+        // Convert vendor stats to array and sort by count (descending)
+        const vendorArray = Object.values(vendorStats).sort((a, b) => b.count - a.count);
+
+        // Generate HTML report
+        let html = `<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vendor Report - ${storeName}</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+        }
+        h1 {
+            color: white;
+            text-align: center;
+            margin-bottom: 10px;
+            font-size: 2rem;
+        }
+        .subtitle {
+            color: rgba(255,255,255,0.8);
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .card {
+            background: white;
+            border-radius: 12px;
+            padding: 24px;
+            margin-bottom: 24px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+        }
+        .card h2 {
+            color: #333;
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .card h2 .count {
+            background: #667eea;
+            color: white;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        th, td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #eee;
+        }
+        th {
+            background: #f8f9fa;
+            font-weight: 600;
+            color: #555;
+            font-size: 0.85rem;
+            text-transform: uppercase;
+        }
+        tr:hover {
+            background: #f8f9fa;
+        }
+        .event-row {
+            border-left: 4px solid #667eea;
+        }
+        .event-row td:first-child {
+            padding-left: 16px;
+        }
+        .vendor-name {
+            font-weight: 600;
+            color: #333;
+        }
+        .date {
+            color: #888;
+            font-size: 0.9rem;
+        }
+        .count-badge {
+            background: #e8f5e9;
+            color: #2e7d32;
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-weight: 600;
+            font-size: 0.9rem;
+        }
+        .no-data {
+            color: #888;
+            text-align: center;
+            padding: 30px;
+            font-style: italic;
+        }
+        .summary-stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+        .stat-box {
+            background: rgba(255,255,255,0.15);
+            border-radius: 8px;
+            padding: 16px;
+            text-align: center;
+            color: white;
+        }
+        .stat-box .number {
+            font-size: 2rem;
+            font-weight: 700;
+        }
+        .stat-box .label {
+            font-size: 0.85rem;
+            opacity: 0.9;
+        }
+        @media (max-width: 600px) {
+            body { padding: 10px; }
+            .card { padding: 16px; }
+            th, td { padding: 8px; font-size: 0.85rem; }
+            h1 { font-size: 1.5rem; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>📊 Vendor Report</h1>
+        <p class="subtitle">${storeName} • Generated ${now.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
+
+        <div class="summary-stats">
+            <div class="stat-box">
+                <div class="number">${state.allProducts.length}</div>
+                <div class="label">Total Products</div>
+            </div>
+            <div class="stat-box">
+                <div class="number">${recentEvents.length}</div>
+                <div class="label">Recent Events (3 days)</div>
+            </div>
+            <div class="stat-box">
+                <div class="number">${vendorArray.length}</div>
+                <div class="label">Unique Vendors</div>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2>🎉 Events Added (Past 3 Days) <span class="count">${recentEvents.length}</span></h2>
+            ${recentEvents.length > 0 ? `
+            <table>
+                <thead>
+                    <tr>
+                        <th>Event Name</th>
+                        <th>Vendor</th>
+                        <th>Added Date</th>
+                        <th>Price</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${recentEvents.map(event => `
+                    <tr class="event-row">
+                        <td>${event.title}</td>
+                        <td>${event.vendor}</td>
+                        <td class="date">${event.createdAt.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</td>
+                        <td>${event.price ? formatPrice(event.price) : 'N/A'}</td>
+                    </tr>
+                    `).join('')}
+                </tbody>
+            </table>
+            ` : '<p class="no-data">No events added in the past 3 days</p>'}
+        </div>
+
+        <div class="card">
+            <h2>🏪 Vendors Overview <span class="count">${vendorArray.length}</span></h2>
+            ${vendorArray.length > 0 ? `
+            <table>
+                <thead>
+                    <tr>
+                        <th>Vendor Name</th>
+                        <th>First Product</th>
+                        <th>Latest Product</th>
+                        <th>Products</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${vendorArray.map(vendor => `
+                    <tr>
+                        <td class="vendor-name">${vendor.name}</td>
+                        <td class="date">${vendor.firstDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</td>
+                        <td class="date">${vendor.lastDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</td>
+                        <td><span class="count-badge">${vendor.count}</span></td>
+                    </tr>
+                    `).join('')}
+                </tbody>
+            </table>
+            ` : '<p class="no-data">No vendor data available</p>'}
+        </div>
+    </div>
+</body>
+</html>`;
+
+        // Open in new tab
+        const blob = new Blob([html], { type: 'text/html' });
+        const url = URL.createObjectURL(blob);
+        window.open(url, '_blank');
     }
 
 });

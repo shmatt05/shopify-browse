@@ -159,6 +159,14 @@ input:focus, select:focus {
     background-color: #3aa8a6;
 }
 
+.vendor-report-btn {
+    background-color: var(--primary-color);
+}
+
+.vendor-report-btn:hover {
+    background-color: var(--primary-color-dark);
+}
+
 .export-button i {
     font-size: 0.9rem;
 }
