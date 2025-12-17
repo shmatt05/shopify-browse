@@ -768,11 +768,22 @@ document.addEventListener('DOMContentLoaded', () => {
             // Create variant header
             const variantHeader = document.createElement('div');
             variantHeader.className = 'variant-header';
-            variantHeader.innerHTML = `<span>Variants (${product.variants.length})</span>`;
+            
+            // Count available variants if filter is on
+            const availableCount = product.variants.filter(v => v.available === true).length;
+            const headerText = state.showAvailableOnly 
+                ? `Available Variants (${availableCount} of ${product.variants.length})`
+                : `Variants (${product.variants.length})`;
+            variantHeader.innerHTML = `<span>${headerText}</span>`;
             variantContainer.appendChild(variantHeader);
 
+            // Filter variants if showAvailableOnly is enabled (for checking if we have variants to show)
+            const filteredVariants = state.showAvailableOnly 
+                ? product.variants.filter(v => v.available === true)
+                : product.variants;
+
             // Create variant table
-            if (product.variants.length > 0) {
+            if (filteredVariants.length > 0) {
                 const variantTable = document.createElement('table');
                 variantTable.className = 'variant-table';
 
@@ -801,7 +812,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 // Create document fragment to improve performance
                 const fragment = document.createDocumentFragment();
 
-                product.variants.forEach(variant => {
+                // Filter variants if showAvailableOnly is enabled
+                const variantsToShow = state.showAvailableOnly 
+                    ? product.variants.filter(v => v.available === true)
+                    : product.variants;
+
+                variantsToShow.forEach(variant => {
                     const variantRow = document.createElement('tr');
                     variantRow.className = 'variant-row';
 
@@ -884,9 +900,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 variantContainer.appendChild(variantTable);
             } else {
                 const noVariantsMessage = document.createElement('p');
-                noVariantsMessage.textContent = 'No variants found for this product.';
+                noVariantsMessage.textContent = state.showAvailableOnly 
+                    ? 'No available variants for this product.'
+                    : 'No variants found for this product.';
                 noVariantsMessage.style.padding = '1rem';
                 noVariantsMessage.style.textAlign = 'center';
+                noVariantsMessage.style.color = '#888';
                 variantContainer.appendChild(noVariantsMessage);
             }
 
