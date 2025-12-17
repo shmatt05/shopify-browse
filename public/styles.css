@@ -421,6 +421,93 @@ input:focus, select:focus {
     display: none;
 }
 
+/* Checkout Bar */
+.checkout-bar {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: linear-gradient(135deg, #5c6ac4 0%, #4959bd 100%);
+    padding: 1rem 2rem;
+    box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.2);
+    z-index: 1000;
+    animation: slideUp 0.3s ease;
+}
+
+@keyframes slideUp {
+    from {
+        transform: translateY(100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
+
+.checkout-bar-content {
+    max-width: 1200px;
+    margin: 0 auto;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.checkout-bar #selected-count {
+    color: white;
+    font-weight: 600;
+    font-size: 1.1rem;
+}
+
+.checkout-bar-buttons {
+    display: flex;
+    gap: 1rem;
+}
+
+.checkout-bar-btn {
+    padding: 0.6rem 1.2rem;
+    border: none;
+    border-radius: 6px;
+    font-size: 0.95rem;
+    font-weight: 500;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    transition: all 0.2s;
+}
+
+.uncheck-btn {
+    background: rgba(255, 255, 255, 0.2);
+    color: white;
+}
+
+.uncheck-btn:hover {
+    background: rgba(255, 255, 255, 0.3);
+}
+
+.checkout-btn {
+    background: #50b83c;
+    color: white;
+}
+
+.checkout-btn:hover {
+    background: #3d9c2e;
+}
+
+/* Variant checkbox styling */
+.variant-checkbox {
+    width: 18px;
+    height: 18px;
+    cursor: pointer;
+    accent-color: var(--primary-color);
+}
+
+.variant-checkbox-cell {
+    text-align: center;
+    width: 40px;
+}
+
 /* Image column and hover zoom */
 .image-column {
     width: 80px;
@@ -870,5 +957,30 @@ input:focus, select:focus {
     .export-button {
         padding: 0.4rem 0.8rem;
         font-size: 0.8rem;
+    }
+
+    /* Checkout bar mobile */
+    .checkout-bar {
+        padding: 0.75rem 1rem;
+    }
+
+    .checkout-bar-content {
+        flex-direction: column;
+        gap: 0.75rem;
+    }
+
+    .checkout-bar #selected-count {
+        font-size: 0.95rem;
+    }
+
+    .checkout-bar-buttons {
+        width: 100%;
+    }
+
+    .checkout-bar-btn {
+        flex: 1;
+        justify-content: center;
+        padding: 0.5rem 0.8rem;
+        font-size: 0.85rem;
     }
 }

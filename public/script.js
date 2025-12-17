@@ -25,6 +25,10 @@ document.addEventListener('DOMContentLoaded', () => {
         sizeFilterContainer: document.getElementById('size-filter-container'),
         sizeFilter: document.getElementById('size-filter'),
         clearSizesButton: document.getElementById('clear-sizes'),
+        checkoutBar: document.getElementById('checkout-bar'),
+        selectedCountSpan: document.getElementById('selected-count'),
+        uncheckAllBtn: document.getElementById('uncheck-all-btn'),
+        checkoutNowBtn: document.getElementById('checkout-now-btn'),
         brandFilter: null, // Will be created dynamically
         genderFilter: null, // Will be created dynamically
         typeFilter: null // Will be created dynamically
@@ -51,6 +55,7 @@ document.addEventListener('DOMContentLoaded', () => {
         },
         showAvailableOnly: false,
         selectedSizes: [],
+        selectedVariants: new Map(), // Map of variantId -> { id, title, price }
         brandOptions: [],
         genderOptions: [],
         typeOptions: [],
@@ -80,6 +85,9 @@ document.addEventListener('DOMContentLoaded', () => {
         state.selectedSizes = [];
         applyFilters();
     });
+
+    elements.uncheckAllBtn.addEventListener('click', clearAllSelectedVariants);
+    elements.checkoutNowBtn.addEventListener('click', checkoutSelectedVariants);
 
     // Add click listeners to table headers for sorting using event delegation
     document.querySelector('.products-table thead').addEventListener('click', (e) => {
@@ -772,10 +780,15 @@ document.addEventListener('DOMContentLoaded', () => {
                 const tableHeader = document.createElement('thead');
                 const headerRow = document.createElement('tr');
 
-                const headers = ['Title', 'SKU', 'Price', 'Available', 'Option1', 'Option2', 'Option3', 'Actions'];
-                headers.forEach(header => {
+                const headers = ['', 'Title', 'SKU', 'Price', 'Available', 'Option1', 'Option2', 'Option3', 'Actions'];
+                headers.forEach((header, index) => {
                     const th = document.createElement('th');
-                    th.textContent = header;
+                    if (index === 0) {
+                        th.innerHTML = '<i class="fas fa-check-square" style="opacity: 0.5;"></i>';
+                        th.className = 'variant-checkbox-cell';
+                    } else {
+                        th.textContent = header;
+                    }
                     headerRow.appendChild(th);
                 });
 
@@ -791,6 +804,27 @@ document.addEventListener('DOMContentLoaded', () => {
                 product.variants.forEach(variant => {
                     const variantRow = document.createElement('tr');
                     variantRow.className = 'variant-row';
+
+                    // Checkbox cell
+                    const checkboxCell = document.createElement('td');
+                    checkboxCell.className = 'variant-checkbox-cell';
+                    const checkbox = document.createElement('input');
+                    checkbox.type = 'checkbox';
+                    checkbox.className = 'variant-checkbox';
+                    checkbox.dataset.variantId = variant.id;
+                    checkbox.dataset.variantTitle = variant.title || 'Default Title';
+                    checkbox.dataset.variantPrice = variant.price || '0';
+                    
+                    // Check if this variant is already selected
+                    if (state.selectedVariants.has(variant.id.toString())) {
+                        checkbox.checked = true;
+                    }
+                    
+                    checkbox.addEventListener('change', (e) => {
+                        handleVariantCheckboxChange(e, variant);
+                    });
+                    checkboxCell.appendChild(checkbox);
+                    variantRow.appendChild(checkboxCell);
 
                     // Title cell
                     const titleCell = document.createElement('td');
@@ -1104,6 +1138,10 @@ document.addEventListener('DOMContentLoaded', () => {
         elements.sizeFilterContainer.classList.add('hidden');
         state.selectedSizes = [];
 
+        // Reset selected variants
+        state.selectedVariants.clear();
+        elements.checkoutBar.classList.add('hidden');
+
         // Reset filter state
         Object.keys(state.filterState).forEach(key => {
             state.filterState[key] = '';
@@ -1154,6 +1192,65 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function hideError() {
         elements.errorMessage.classList.add('hidden');
+    }
+
+    // Handle variant checkbox change
+    function handleVariantCheckboxChange(event, variant) {
+        const checkbox = event.target;
+        const variantId = variant.id.toString();
+
+        if (checkbox.checked) {
+            state.selectedVariants.set(variantId, {
+                id: variant.id,
+                title: variant.title || 'Default Title',
+                price: variant.price || '0'
+            });
+        } else {
+            state.selectedVariants.delete(variantId);
+        }
+
+        updateCheckoutBar();
+    }
+
+    // Update checkout bar visibility and count
+    function updateCheckoutBar() {
+        const count = state.selectedVariants.size;
+
+        if (count > 0) {
+            elements.checkoutBar.classList.remove('hidden');
+            elements.selectedCountSpan.textContent = count === 1 
+                ? '1 item selected' 
+                : `${count} items selected`;
+        } else {
+            elements.checkoutBar.classList.add('hidden');
+        }
+    }
+
+    // Clear all selected variants
+    function clearAllSelectedVariants() {
+        state.selectedVariants.clear();
+        
+        // Uncheck all visible checkboxes
+        document.querySelectorAll('.variant-checkbox').forEach(checkbox => {
+            checkbox.checked = false;
+        });
+
+        updateCheckoutBar();
+    }
+
+    // Checkout selected variants
+    function checkoutSelectedVariants() {
+        if (state.selectedVariants.size === 0) return;
+
+        const storeName = elements.storeNameInput.value.trim();
+        
+        // Build cart URL with all selected variants
+        const cartItems = Array.from(state.selectedVariants.values())
+            .map(variant => `${variant.id}:1`)
+            .join(',');
+
+        const checkoutUrl = `https://${storeName}.myshopify.com/cart/${cartItems}`;
+        window.open(checkoutUrl, '_blank');
     }
 
     // Function to export products to HTML
