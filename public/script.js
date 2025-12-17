@@ -28,6 +28,7 @@ document.addEventListener('DOMContentLoaded', () => {
         checkoutBar: document.getElementById('checkout-bar'),
         selectedCountSpan: document.getElementById('selected-count'),
         uncheckAllBtn: document.getElementById('uncheck-all-btn'),
+        copyLinkBtn: document.getElementById('copy-link-btn'),
         checkoutNowBtn: document.getElementById('checkout-now-btn'),
         brandFilter: null, // Will be created dynamically
         genderFilter: null, // Will be created dynamically
@@ -87,6 +88,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     elements.uncheckAllBtn.addEventListener('click', clearAllSelectedVariants);
+    elements.copyLinkBtn.addEventListener('click', copyCheckoutLink);
     elements.checkoutNowBtn.addEventListener('click', checkoutSelectedVariants);
 
     // Add click listeners to table headers for sorting using event delegation
@@ -1264,18 +1266,48 @@ document.addEventListener('DOMContentLoaded', () => {
         updateCheckoutBar();
     }
 
-    // Checkout selected variants
-    function checkoutSelectedVariants() {
-        if (state.selectedVariants.size === 0) return;
-
+    // Build checkout URL
+    function buildCheckoutUrl() {
         const storeName = elements.storeNameInput.value.trim();
-        
-        // Build cart URL with all selected variants
         const cartItems = Array.from(state.selectedVariants.values())
             .map(variant => `${variant.id}:1`)
             .join(',');
+        return `https://${storeName}.myshopify.com/cart/${cartItems}`;
+    }
 
-        const checkoutUrl = `https://${storeName}.myshopify.com/cart/${cartItems}`;
+    // Copy checkout link to clipboard
+    function copyCheckoutLink() {
+        if (state.selectedVariants.size === 0) return;
+
+        const checkoutUrl = buildCheckoutUrl();
+        
+        navigator.clipboard.writeText(checkoutUrl).then(() => {
+            // Show feedback
+            const btn = elements.copyLinkBtn;
+            const originalHTML = btn.innerHTML;
+            btn.innerHTML = '<i class="fas fa-check"></i> Copied!';
+            btn.classList.add('copied');
+            
+            setTimeout(() => {
+                btn.innerHTML = originalHTML;
+                btn.classList.remove('copied');
+            }, 2000);
+        }).catch(err => {
+            console.error('Failed to copy:', err);
+            // Fallback for older browsers
+            const textArea = document.createElement('textarea');
+            textArea.value = checkoutUrl;
+            document.body.appendChild(textArea);
+            textArea.select();
+            document.execCommand('copy');
+            document.body.removeChild(textArea);
+        });
+    }
+
+    // Checkout selected variants
+    function checkoutSelectedVariants() {
+        if (state.selectedVariants.size === 0) return;
+        const checkoutUrl = buildCheckoutUrl();
         window.open(checkoutUrl, '_blank');
     }
 

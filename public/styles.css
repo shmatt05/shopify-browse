@@ -495,6 +495,22 @@ input:focus, select:focus {
     background: rgba(255, 255, 255, 0.3);
 }
 
+.copy-btn {
+    background: rgba(255, 255, 255, 0.95);
+    color: #667eea;
+    border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+.copy-btn:hover {
+    background: white;
+    transform: translateY(-1px);
+}
+
+.copy-btn.copied {
+    background: #50b83c;
+    color: white;
+}
+
 .checkout-btn {
     background: linear-gradient(135deg, #50b83c 0%, #3d9c2e 100%);
     color: white;
