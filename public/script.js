@@ -526,20 +526,27 @@ document.addEventListener('DOMContentLoaded', () => {
             });
         }
 
-        // Apply size filter
+        // Apply size filter (OR logic - show product if it has ANY of the selected sizes)
         if (state.selectedSizes.length > 0) {
             state.filteredProducts = state.filteredProducts.filter(product => {
-                // Check if product has at least one variant with a selected size
-                return product.variants && product.variants.some(variant => {
-                    if (!variant.title) return false;
+                if (!product.variants) return false;
+                
+                // Check each variant
+                for (const variant of product.variants) {
+                    if (!variant.title) continue;
                     
                     // Extract numbers from variant title
                     const sizeMatches = variant.title.match(/\b\d+(?:\.\d+)?\b/g);
-                    if (!sizeMatches) return false;
+                    if (!sizeMatches) continue;
                     
-                    // Check if any extracted size matches a selected size
-                    return sizeMatches.some(size => state.selectedSizes.includes(size));
-                });
+                    // Check if ANY of the variant's sizes matches ANY selected size (OR logic)
+                    for (const size of sizeMatches) {
+                        if (state.selectedSizes.includes(size)) {
+                            return true; // Product has at least one matching size, include it
+                        }
+                    }
+                }
+                return false; // No matching sizes found
             });
         }
 
