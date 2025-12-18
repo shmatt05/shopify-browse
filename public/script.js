@@ -852,7 +852,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     }
                     
                     checkbox.addEventListener('change', (e) => {
-                        handleVariantCheckboxChange(e, variant);
+                        handleVariantCheckboxChange(e, variant, product);
                     });
                     checkboxCell.appendChild(checkbox);
                     variantRow.appendChild(checkboxCell);
@@ -1231,16 +1231,22 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // Handle variant checkbox change
-    function handleVariantCheckboxChange(event, variant) {
+    function handleVariantCheckboxChange(event, variant, product) {
         const checkbox = event.target;
         const variantId = String(variant.id);
 
         if (checkbox.checked) {
+            // Get product image
+            const productImage = (product.images && product.images.length > 0) 
+                ? product.images[0].src 
+                : null;
+
             state.selectedVariants.set(variantId, {
                 id: variant.id,
                 title: variant.title || 'Default Title',
                 price: variant.price || '0',
-                productTitle: variant.productTitle || ''
+                productTitle: product.title || '',
+                productImage: productImage
             });
         } else {
             state.selectedVariants.delete(variantId);
@@ -1286,10 +1292,16 @@ document.addEventListener('DOMContentLoaded', () => {
         let html = '';
         state.selectedVariants.forEach((variant, variantId) => {
             const price = parseFloat(variant.price) || 0;
+            const imageHtml = variant.productImage 
+                ? `<img src="${variant.productImage}" alt="${variant.productTitle}" class="cart-item-image">`
+                : `<div class="cart-item-image cart-item-no-image"><i class="fas fa-image"></i></div>`;
+            
             html += `
                 <div class="cart-item" data-variant-id="${variantId}">
+                    ${imageHtml}
                     <div class="cart-item-info">
-                        <div class="cart-item-title">${variant.title}</div>
+                        <div class="cart-item-product">${variant.productTitle}</div>
+                        <div class="cart-item-variant">${variant.title}</div>
                         <div class="cart-item-price">${formatPrice(price)}</div>
                     </div>
                     <button class="cart-item-remove" onclick="removeFromCart('${variantId}')">
