@@ -25,8 +25,12 @@ document.addEventListener('DOMContentLoaded', () => {
         sizeFilterContainer: document.getElementById('size-filter-container'),
         sizeFilter: document.getElementById('size-filter'),
         clearSizesButton: document.getElementById('clear-sizes'),
-        checkoutBar: document.getElementById('checkout-bar'),
-        selectedCountSpan: document.getElementById('selected-count'),
+        cartSidebar: document.getElementById('cart-sidebar'),
+        cartItems: document.getElementById('cart-items'),
+        cartTotalAmount: document.getElementById('cart-total-amount'),
+        cartToggleBtn: document.getElementById('cart-toggle-btn'),
+        cartBadge: document.getElementById('cart-badge'),
+        closeCartBtn: document.getElementById('close-cart-btn'),
         uncheckAllBtn: document.getElementById('uncheck-all-btn'),
         copyLinkBtn: document.getElementById('copy-link-btn'),
         checkoutNowBtn: document.getElementById('checkout-now-btn'),
@@ -90,6 +94,8 @@ document.addEventListener('DOMContentLoaded', () => {
     elements.uncheckAllBtn.addEventListener('click', clearAllSelectedVariants);
     elements.copyLinkBtn.addEventListener('click', copyCheckoutLink);
     elements.checkoutNowBtn.addEventListener('click', checkoutSelectedVariants);
+    elements.cartToggleBtn.addEventListener('click', toggleCart);
+    elements.closeCartBtn.addEventListener('click', toggleCart);
 
     // Add click listeners to table headers for sorting using event delegation
     document.querySelector('.products-table thead').addEventListener('click', (e) => {
@@ -1166,9 +1172,11 @@ document.addEventListener('DOMContentLoaded', () => {
         elements.sizeFilterContainer.classList.add('hidden');
         state.selectedSizes = [];
 
-        // Reset selected variants
+        // Reset selected variants and cart
         state.selectedVariants.clear();
-        elements.checkoutBar.classList.add('hidden');
+        elements.cartToggleBtn.classList.add('hidden');
+        elements.cartSidebar.classList.add('hidden');
+        elements.cartSidebar.classList.remove('visible');
 
         // Reset filter state
         Object.keys(state.filterState).forEach(key => {
@@ -1225,33 +1233,94 @@ document.addEventListener('DOMContentLoaded', () => {
     // Handle variant checkbox change
     function handleVariantCheckboxChange(event, variant) {
         const checkbox = event.target;
-        const variantId = variant.id.toString();
+        const variantId = String(variant.id);
 
         if (checkbox.checked) {
             state.selectedVariants.set(variantId, {
                 id: variant.id,
                 title: variant.title || 'Default Title',
-                price: variant.price || '0'
+                price: variant.price || '0',
+                productTitle: variant.productTitle || ''
             });
         } else {
             state.selectedVariants.delete(variantId);
         }
 
-        updateCheckoutBar();
+        updateCart();
     }
 
-    // Update checkout bar visibility and count
-    function updateCheckoutBar() {
+    // Toggle cart sidebar visibility
+    function toggleCart() {
+        elements.cartSidebar.classList.toggle('visible');
+        elements.cartSidebar.classList.toggle('hidden');
+    }
+
+    // Update cart display
+    function updateCart() {
         const count = state.selectedVariants.size;
 
+        // Update toggle button visibility and badge
         if (count > 0) {
-            elements.checkoutBar.classList.remove('hidden');
-            elements.selectedCountSpan.textContent = count === 1 
-                ? '1 item selected' 
-                : `${count} items selected`;
+            elements.cartToggleBtn.classList.remove('hidden');
+            elements.cartBadge.textContent = count;
         } else {
-            elements.checkoutBar.classList.add('hidden');
+            elements.cartToggleBtn.classList.add('hidden');
+            elements.cartSidebar.classList.add('hidden');
+            elements.cartSidebar.classList.remove('visible');
         }
+
+        // Update cart items list
+        renderCartItems();
+
+        // Update total
+        updateCartTotal();
+    }
+
+    // Render cart items
+    function renderCartItems() {
+        if (state.selectedVariants.size === 0) {
+            elements.cartItems.innerHTML = '<div class="cart-empty"><i class="fas fa-shopping-cart" style="font-size: 2rem; margin-bottom: 0.5rem; opacity: 0.3;"></i><br>Your cart is empty</div>';
+            return;
+        }
+
+        let html = '';
+        state.selectedVariants.forEach((variant, variantId) => {
+            const price = parseFloat(variant.price) || 0;
+            html += `
+                <div class="cart-item" data-variant-id="${variantId}">
+                    <div class="cart-item-info">
+                        <div class="cart-item-title">${variant.title}</div>
+                        <div class="cart-item-price">${formatPrice(price)}</div>
+                    </div>
+                    <button class="cart-item-remove" onclick="removeFromCart('${variantId}')">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+            `;
+        });
+        elements.cartItems.innerHTML = html;
+    }
+
+    // Remove item from cart (global function for onclick)
+    window.removeFromCart = function(variantId) {
+        state.selectedVariants.delete(variantId);
+        
+        // Uncheck the corresponding checkbox if visible
+        const checkbox = document.querySelector(`.variant-checkbox[data-variant-id="${variantId}"]`);
+        if (checkbox) {
+            checkbox.checked = false;
+        }
+
+        updateCart();
+    };
+
+    // Update cart total
+    function updateCartTotal() {
+        let total = 0;
+        state.selectedVariants.forEach(variant => {
+            total += parseFloat(variant.price) || 0;
+        });
+        elements.cartTotalAmount.textContent = formatPrice(total);
     }
 
     // Clear all selected variants
@@ -1263,7 +1332,7 @@ document.addEventListener('DOMContentLoaded', () => {
             checkbox.checked = false;
         });
 
-        updateCheckoutBar();
+        updateCart();
     }
 
     // Build checkout URL
@@ -1289,7 +1358,7 @@ document.addEventListener('DOMContentLoaded', () => {
             btn.classList.add('copied');
             
             setTimeout(() => {
-                btn.innerHTML = originalHTML;
+                btn.innerHTML = '<i class="fas fa-copy"></i> Copy Link';
                 btn.classList.remove('copied');
             }, 2000);
         }).catch(err => {

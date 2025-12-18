@@ -68,26 +68,41 @@
             </div>
         </div>
 
-        <!-- Checkout Bar - Above results -->
-        <div id="checkout-bar" class="checkout-bar hidden">
-            <div class="checkout-bar-content">
-                <div class="checkout-bar-info">
-                    <i class="fas fa-shopping-basket checkout-icon"></i>
-                    <span id="selected-count">0 items selected</span>
+        <!-- Cart Sidebar -->
+        <div id="cart-sidebar" class="cart-sidebar hidden">
+            <div class="cart-header">
+                <h3><i class="fas fa-shopping-cart"></i> My Cart</h3>
+                <button id="close-cart-btn" class="close-cart-btn">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div id="cart-items" class="cart-items">
+                <!-- Cart items will be populated here -->
+            </div>
+            <div class="cart-footer">
+                <div class="cart-total">
+                    <span>Total:</span>
+                    <span id="cart-total-amount">$0.00</span>
                 </div>
-                <div class="checkout-bar-buttons">
-                    <button id="uncheck-all-btn" class="checkout-bar-btn uncheck-btn">
-                        <i class="fas fa-times"></i> Clear All
+                <div class="cart-actions">
+                    <button id="uncheck-all-btn" class="cart-action-btn clear-btn">
+                        <i class="fas fa-trash"></i> Clear All
                     </button>
-                    <button id="copy-link-btn" class="checkout-bar-btn copy-btn">
+                    <button id="copy-link-btn" class="cart-action-btn copy-btn">
                         <i class="fas fa-copy"></i> Copy Link
                     </button>
-                    <button id="checkout-now-btn" class="checkout-bar-btn checkout-btn">
-                        <i class="fas fa-shopping-cart"></i> Checkout Now
+                    <button id="checkout-now-btn" class="cart-action-btn checkout-btn">
+                        <i class="fas fa-shopping-cart"></i> Checkout
                     </button>
                 </div>
             </div>
         </div>
+        
+        <!-- Cart Toggle Button (floating) -->
+        <button id="cart-toggle-btn" class="cart-toggle-btn hidden">
+            <i class="fas fa-shopping-cart"></i>
+            <span id="cart-badge" class="cart-badge">0</span>
+        </button>
 
         <div id="results-container" class="results-container">
             <div id="table-scroll-hint" class="table-scroll-hint hidden">
@@ -166,6 +181,6 @@
         </div>
     </div>
 
-    <script src="script.js?v=12"></script>
+    <script src="script.js?v=13"></script>
 </body>
 </html>
