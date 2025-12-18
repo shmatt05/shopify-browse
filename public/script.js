@@ -526,35 +526,42 @@ document.addEventListener('DOMContentLoaded', () => {
         // Start with all products
         state.filteredProducts = [...state.allProducts];
 
-        // Apply availability filter first
-        if (state.showAvailableOnly) {
-            state.filteredProducts = state.filteredProducts.filter(product => {
-                // Check if product has at least one available variant
-                return product.variants && product.variants.some(variant => variant.available === true);
-            });
-        }
-
-        // Apply size filter (OR logic - show product if it has ANY of the selected sizes)
-        if (state.selectedSizes.length > 0) {
+        // Apply combined availability + size filter
+        // When both are active, we need variants that match BOTH conditions
+        if (state.showAvailableOnly && state.selectedSizes.length > 0) {
+            // Combined filter: variant must be available AND have a selected size
             state.filteredProducts = state.filteredProducts.filter(product => {
                 if (!product.variants) return false;
                 
-                // Check each variant
-                for (const variant of product.variants) {
-                    if (!variant.title) continue;
+                return product.variants.some(variant => {
+                    // Must be available
+                    if (!variant.available) return false;
                     
-                    // Extract numbers from variant title
+                    // Must have a matching size
+                    if (!variant.title) return false;
                     const sizeMatches = variant.title.match(/\b\d+(?:\.\d+)?\b/g);
-                    if (!sizeMatches) continue;
+                    if (!sizeMatches) return false;
                     
-                    // Check if ANY of the variant's sizes matches ANY selected size (OR logic)
-                    for (const size of sizeMatches) {
-                        if (state.selectedSizes.includes(size)) {
-                            return true; // Product has at least one matching size, include it
-                        }
-                    }
-                }
-                return false; // No matching sizes found
+                    return sizeMatches.some(size => state.selectedSizes.includes(size));
+                });
+            });
+        } else if (state.showAvailableOnly) {
+            // Only availability filter
+            state.filteredProducts = state.filteredProducts.filter(product => {
+                return product.variants && product.variants.some(variant => variant.available === true);
+            });
+        } else if (state.selectedSizes.length > 0) {
+            // Only size filter (OR logic - show product if it has ANY of the selected sizes)
+            state.filteredProducts = state.filteredProducts.filter(product => {
+                if (!product.variants) return false;
+                
+                return product.variants.some(variant => {
+                    if (!variant.title) return false;
+                    const sizeMatches = variant.title.match(/\b\d+(?:\.\d+)?\b/g);
+                    if (!sizeMatches) return false;
+                    
+                    return sizeMatches.some(size => state.selectedSizes.includes(size));
+                });
             });
         }
 
